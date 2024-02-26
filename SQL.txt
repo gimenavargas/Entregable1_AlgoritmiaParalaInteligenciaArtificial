@@ -23,3 +23,13 @@ CREATE TABLE pedidos (
     estado ENUM('pendiente', 'enviado', 'entregado') DEFAULT 'pendiente',
     FOREIGN KEY (cliente_id) REFERENCES clientes(id)
 );
+
+-- Crear la tabla de detalles de pedido
+CREATE TABLE detalles_pedido (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    pedido_id INT NOT NULL,
+    producto_id INT NOT NULL,
+    cantidad INT NOT NULL,
+    FOREIGN KEY (pedido_id) REFERENCES pedidos(id),
+    FOREIGN KEY (producto_id) REFERENCES productos(id)
+);
