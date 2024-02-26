@@ -1,43 +1,59 @@
 <?php
-// Conexión a la base de datos (asumiendo que ya tienes la conexión establecida)
-// Reemplaza 'localhost', 'usuario', 'contraseña' y 'basededatos' con tus propios valores
-$conexion = new mysqli('localhost', 'root', '', 'happy');
+// Conectar a la base de datos (reemplaza los valores con los de tu propia configuración)
+$servername = "localhost";
+$username = "root";
+$password = "";
+$database = "happy";
 
-// Verificar si la conexión tiene errores
-if ($conexion->connect_error) {
-    die("Error en la conexión: " . $conexion->connect_error);
+$conn = new mysqli($servername, $username, $password, $database);
+
+// Verificar la conexión
+if ($conn->connect_error) {
+    die("Error de conexión: " . $conn->connect_error);
 }
 
-// Verificar si se ha enviado el formulario
+// Obtener datos del formulario
+$cliente_id = $_POST['cliente_id'];
+$productos = $_POST['productos']; // Este sería un array con los IDs de los productos seleccionados
+
+// Verificar si se ha enviado el formulario de registro de pedido
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Recuperar los datos del formulario
-    $cliente_id = $_POST['cliente_id'];
-    $productos = $_POST['productos']; // Array de productos seleccionados
-
-    // Crear un nuevo registro de pedido
-    $query_pedido = "INSERT INTO pedidos (cliente_id) VALUES ('$cliente_id')";
-    if ($conexion->query($query_pedido) === TRUE) {
-        // Obtener el ID del pedido recién creado
-        $pedido_id = $conexion->insert_id;
-
-        // Recorrer los productos seleccionados y guardar los detalles del pedido
-        foreach ($productos as $producto) {
-            $producto_id = $producto['id'];
-            $cantidad = $producto['cantidad'];
-            $query_detalle = "INSERT INTO detalles_pedido (pedido_id, producto_id, cantidad) VALUES ('$pedido_id', '$producto_id', '$cantidad')";
-            $conexion->query($query_detalle);
+    // Verificar si se ha seleccionado al menos un producto
+    if (!isset($_POST['productos']) || empty($_POST['productos'])) {
+        echo "Error: Debe seleccionar al menos un producto.";
+        exit;
+    }
+    
+    // Verificar disponibilidad de productos en stock
+    foreach ($_POST['productos'] as $producto_id => $cantidad) {
+        // Obtener la cantidad en stock del producto
+        $sql_stock = "SELECT stock FROM productos WHERE id = $producto_id";
+        $result = $conn->query($sql_stock);
+        if ($result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            $stock_disponible = $row["stock"];
+            // Verificar si hay suficiente stock
+            if ($cantidad > $stock_disponible) {
+                echo "Error: No hay suficiente stock para el producto seleccionado.";
+                exit;
+            }
+        } else {
+            echo "Error: El producto seleccionado no existe.";
+            exit;
         }
+    }}
 
-        echo "El pedido se registró correctamente.";
-    } else {
-        echo "Error al registrar el pedido: " . $conexion->error;
+// Insertar el pedido en la tabla de pedidos
+$sql_pedido = "INSERT INTO pedidos (cliente_id) VALUES ($cliente_id)";
+if ($conn->query($sql_pedido) === TRUE) {
+    $pedido_id = $conn->insert_id;
+
+    // Insertar los detalles del pedido en la tabla detalles_pedido
+    foreach ($productos as $producto_id => $cantidad) {
+        $sql_detalles = "INSERT INTO detalles_pedido (pedido_id, producto_id, cantidad) VALUES ($pedido_id, $producto_id, $cantidad)";
+        $conn->query($sql_detalles);
     }
 
-    // Cerrar la conexión
-    $conexion->close();
 } else {
-    // Si no se ha enviado el formulario, redirigir al formulario de registro de pedidos
-    header("Location: formulario_pedido.php");
-    exit();
+    echo "Error: Método de solicitud incorrecto.";
 }
-?>
